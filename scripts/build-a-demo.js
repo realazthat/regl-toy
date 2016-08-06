@@ -48,7 +48,7 @@ function buildADemo ({BUILDDIR, MAINJSFILE, MAINHTMLFILE, TITLE, assets}) {
     });
 
     for (let asset of assets) {
-      ncp(asset, `${BUILDDIR}`, function (err) {
+      ncp(asset, `${BUILDDIR}/${asset}`, function (err) {
         if (err) {
           throw err;
         }
