@@ -23,8 +23,8 @@ if [ "$TRAVIS_REPO_SLUG" == "realazthat/regl-toy" ] && [ "$TRAVIS_PULL_REQUEST" 
   git rm -rf --ignore-unmatch "./$TRAVIS_BRANCH/dist"
   mkdir -p "./$TRAVIS_BRANCH/."
   echo $TRAVIS_BUILD_NUMBER > "./$TRAVIS_BRANCH/travis_build_number"
-  cp -Rf "$PROJECT_PATH/www/" "./$TRAVIS_BRANCH/."
-  cp -Rf "$PROJECT_PATH/dist/" "./$TRAVIS_BRANCH/."
+  mkdir -p "$PROJECT_PATH/www/" && cp -Rf "$PROJECT_PATH/www/" "./$TRAVIS_BRANCH/."
+  mkdir -p "$PROJECT_PATH/dist/" && cp -Rf "$PROJECT_PATH/dist/" "./$TRAVIS_BRANCH/."
   git add -f .
   git -c user.email="travis@travis-ci.org" -c user.name="travis-ci" \
         commit -m "Latest 'generated static data' on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages/$TRAVIS_BRANCH"
