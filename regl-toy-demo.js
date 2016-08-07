@@ -1,5 +1,6 @@
 
 const nunjucks = require('nunjucks');
+const querystring = require('querystring');
 const $ = require('jquery-browserify');
 const resl = require('resl');
 const regl = require('regl')({
@@ -70,6 +71,8 @@ function loadShaderResources ({regl, shader}) {
 }
 
 $(document).ready(function () {
+  // {shader id => shadertoy json object}
+  let knownShaders = {};
   let loaded = {};
 
   let [width, height] = [256, 256];
@@ -130,11 +133,44 @@ $(document).ready(function () {
     }
   });
 
+  $(window).on('hashchange', function () {
+    if (window.location.hash.length === 0) {
+      $('#search-results tr:gt(0)').remove();
+      loaded.shader = null;
+      return;
+    }
+    let paramsstr = window.location.hash.slice(1);
+
+    let params = querystring.parse(paramsstr);
+
+    if (params.q !== undefined) {
+      commenceSearch({params});
+    } else if (knownShaders[paramsstr] !== undefined) {
+      let shader = knownShaders[paramsstr];
+      console.log('loadShaderResources');
+      console.log(shader);
+      loadShaderResources({shader})
+        .then(function ({shader}) {
+          console.log('loaded');
+          console.log('shader:', shader);
+          loaded.shader = shader;
+        })
+        .catch(function (err) {
+          console.error('An error occured: ' + err);
+          $('#notification-area').text('An error occured: ' + err);
+        });
+    }
+  });
+
   $('#search-query').on('change', function () {
     // indicate that we are searching by fading out the results
-    $('#search-results').fadeTo(100, 50);
+    $('#search-results').fadeTo(100, 0.5);
 
-    let query = encodeURIComponent($('#search-query').val());
+    window.location.hash = '#q=' + encodeURIComponent($('#search-query').val());
+  });
+
+  function commenceSearch ({params}) {
+    let query = encodeURIComponent(params.q);
     let apikey = 'rt8tw8';
 
     let page = 0;
@@ -158,7 +194,7 @@ $(document).ready(function () {
         Promise.all(promises)
           .then(function (values) {
             // fade the results table back in.
-            $('#search-results').fadeTo(100, 100);
+            $('#search-results').fadeTo(100, 1);
 
             // remove all the old results.
             $('#search-results tr:gt(0)').remove();
@@ -171,19 +207,10 @@ $(document).ready(function () {
               console.log(shader);
               let $tr = $(nunjucks.renderString(resultTemplate, shader)).appendTo($('#search-results > tbody'));
 
+              knownShaders[shader.Shader.info.id] = shader;
+
               $tr.find('.shader-id').on('click', function () {
-                console.log('loadShaderResources');
-                console.log(shader);
-                loadShaderResources({shader})
-                  .then(function ({shader}) {
-                    console.log('loaded');
-                    console.log('shader:', shader);
-                    loaded.shader = shader;
-                  })
-                  .catch(function (err) {
-                    console.error('An error occured: ' + err);
-                    $('#notification-area').text('An error occured: ' + err);
-                  });
+                window.location.hash = '#' + encodeURIComponent(shader.Shader.info.id);
               });
             }
           });
@@ -192,5 +219,5 @@ $(document).ready(function () {
         console.error('An error occured: ' + err);
         $('#notification-area').text('An error occured: ' + err);
       });
-  });
+  }
 });
