@@ -11,6 +11,8 @@ const regl = require('regl')({
 
 const regltoy = require('./regl-toy.js');
 
+let apikey = 'rt8tw8';
+
 function createFbo ({regl, width, height}) {
   return regl.framebuffer({
     color: regl.texture({
@@ -145,16 +147,8 @@ $(document).ready(function () {
 
     if (params.q !== undefined) {
       commenceSearch({params});
-    } else if (knownShaders[paramsstr] !== undefined) {
-      let shader = knownShaders[paramsstr];
-      console.log('loadShaderResources');
-      console.log(shader);
-      loadShaderResources({shader})
-        .then(function ({shader}) {
-          console.log('loaded');
-          console.log('shader:', shader);
-          loaded.shader = shader;
-        })
+    } else {
+      displayShader({shaderID: paramsstr})
         .catch(function (err) {
           console.error('An error occured: ' + err);
           $('#notification-area').text('An error occured: ' + err);
@@ -171,7 +165,6 @@ $(document).ready(function () {
 
   function commenceSearch ({params}) {
     let query = encodeURIComponent(params.q);
-    let apikey = 'rt8tw8';
 
     let page = 0;
     let perpage = 20;
@@ -186,33 +179,26 @@ $(document).ready(function () {
         // let pages = Math.ceil(data.Results.length / perpage);
         let Results = data.Results.slice(page * perpage, page * perpage + perpage);
 
-        let promises = Results.map(function (shaderID) {
-          return $.ajax(`https://www.shadertoy.com/api/v1/shaders/${shaderID}?key=${apikey}`);
-        });
-
-        // get the data for each of all the shaders
-        Promise.all(promises)
-          .then(function (values) {
+        loadShaders({shaderIDs: Results})
+          .then(function (shaders) {
             // fade the results table back in.
             $('#search-results').fadeTo(100, 1);
 
             // remove all the old results.
             $('#search-results tr:gt(0)').remove();
 
-            for (let shader of values) {
-              shader.Shader.info.date = new Date(shader.Shader.info.date).toDateString();
-              let inputs = shader.Shader.renderpass.reduce((lhs, rhs) => lhs + rhs.inputs.length, 0);
-              shader.Shader.inputs = inputs;
-
+            for (let shader of shaders) {
               console.log(shader);
               let $tr = $(nunjucks.renderString(resultTemplate, shader)).appendTo($('#search-results > tbody'));
-
-              knownShaders[shader.Shader.info.id] = shader;
 
               $tr.find('.shader-id').on('click', function () {
                 window.location.hash = '#' + encodeURIComponent(shader.Shader.info.id);
               });
             }
+          })
+          .catch(function (err) {
+            console.error('An error occured: ' + err);
+            $('#notification-area').text('An error occured: ' + err);
           });
       })
       .fail(function (err) {
@@ -220,4 +206,67 @@ $(document).ready(function () {
         $('#notification-area').text('An error occured: ' + err);
       });
   }
+
+  function loadShaders ({shaderIDs}) {
+    return new Promise(function (resolve, reject) {
+      let promises = shaderIDs.map(function (shaderID) {
+        return $.ajax(`https://www.shadertoy.com/api/v1/shaders/${shaderID}?key=${apikey}`);
+      });
+
+      // get the data for each of all the shaders
+      Promise.all(promises)
+        .then(function (values) {
+          let shaders = [];
+
+          for (let shader of values) {
+            shader.Shader.info.date = new Date(shader.Shader.info.date).toDateString();
+            let inputs = shader.Shader.renderpass.reduce((lhs, rhs) => lhs + rhs.inputs.length, 0);
+            shader.Shader.inputs = inputs;
+
+            knownShaders[shader.Shader.info.id] = shader;
+            shaders.push(shader);
+          }
+          return resolve(shaders);
+        }) // Promise.all();
+        .catch(function (err) {
+          return reject(err);
+        });
+    }); // new Promise()
+  }
+
+  function displayShader ({shaderID}) {
+    return new Promise(function (resolve, reject) {
+      if (shaderID === null) {
+        loaded.shader = null;
+        return resolve();
+      }
+
+      if (knownShaders[shaderID] !== undefined) {
+        let shader = knownShaders[shaderID];
+
+        loadShaderResources({shader})
+          .then(function ({shader}) {
+            loaded.shader = shader;
+            return resolve();
+          })
+          .catch(function (err) {
+            return reject(err);
+          });
+      }
+
+      loadShaders({shaderIDs: [shaderID]})
+        .then(function ([shader]) {
+          return loadShaderResources({shader})
+            .then(function ({shader}) {
+              loaded.shader = shader;
+              return resolve();
+            });
+        })
+        .catch(function (err) {
+          return reject(err);
+        });
+    });
+  }
+
+  $(window).trigger('hashchange');
 });
