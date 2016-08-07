@@ -38,7 +38,7 @@ let resultTemplate = `
   <tr>
     <td>{{Shader.info.date}}</td>
     <td>{{Shader.inputs}}</td>
-    <td><a class="shader-id">{{Shader.info.id}}</a></td>
+    <td><button class="shader-id">{{Shader.info.id}}</button></td>
     <td>{{Shader.info.name}}</td>
     <td>{{Shader.info.description}}</td>
     <td>{{Shader.info.tags | join(', ')}}</td>
