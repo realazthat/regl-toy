@@ -3,7 +3,8 @@ const nunjucks = require('nunjucks');
 const $ = require('jquery-browserify');
 const resl = require('resl');
 const regl = require('regl')({
-  extensions: ['OES_texture_float', 'EXT_disjoint_timer_query'],
+  extensions: ['OES_texture_float'],
+  optionalExtensions: ['EXT_disjoint_timer_query'],
   profile: true
 });
 
